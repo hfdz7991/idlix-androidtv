@@ -84,6 +84,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val updateState by AppUpdateManager.state.collectAsState()
     var isSubdlKeyVisible by remember { mutableStateOf(false) }
+    var isSubsourceKeyVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -313,6 +314,110 @@ fun SettingsScreen(
 
                     TextButton(
                         onClick = { viewModel.resetSubdlKey() },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = TextDim
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.reset_to_default), color = TextDim, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            // SubSource API Key Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.subsource_api_header),
+                        color = TextWhite,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.subsource_api_desc),
+                        color = TextMuted,
+                        fontSize = 12.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = uiState.subsourceKey,
+                        onValueChange = { viewModel.updateSubsourceKey(it) },
+                        label = { Text(stringResource(R.string.api_key_label), color = TextDim) },
+                        singleLine = true,
+                        visualTransformation = if (isSubsourceKeyVisible) VisualTransformation.None else PasswordVisualTransformation('*'),
+                        trailingIcon = {
+                            IconButton(onClick = { isSubsourceKeyVisible = !isSubsourceKeyVisible }) {
+                                Icon(
+                                    imageVector = if (isSubsourceKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (isSubsourceKeyVisible) stringResource(R.string.hide_api_key) else stringResource(R.string.show_api_key),
+                                    tint = TextDim
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = SurfaceVariantDark,
+                            unfocusedContainerColor = SurfaceVariantDark,
+                            focusedBorderColor = IdlixRed,
+                            unfocusedBorderColor = SurfaceVariantDark,
+                            focusedTextColor = TextWhite,
+                            unfocusedTextColor = TextWhite
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (uiState.subsourceTestResult != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.subsourceTestResult ?: "",
+                            color = if (uiState.subsourceTestResult!!.contains("valid", ignoreCase = true) || uiState.subsourceTestResult!!.contains("success", ignoreCase = true)) Color(0xFF4CAF50) else IdlixRed,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.testSubsource() },
+                            enabled = !uiState.isTestingSubsource,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            if (uiState.isTestingSubsource) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = IdlixRed)
+                            } else {
+                                Text(stringResource(R.string.test_key), color = TextWhite, maxLines = 1)
+                            }
+                        }
+
+                        Button(
+                            onClick = { viewModel.saveSubsourceKey() },
+                            colors = ButtonDefaults.buttonColors(containerColor = IdlixRed),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(stringResource(R.string.save_key), maxLines = 1)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    TextButton(
+                        onClick = { viewModel.resetSubsourceKey() },
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     ) {
                         Icon(

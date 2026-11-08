@@ -206,6 +206,18 @@
     <string name="subdl_error_quota">SubDL rate limit or quota exceeded. Please check SubDL API key in Settings.</string>
     <string name="subdl_error_invalid_key">Invalid SubDL API key. Please configure a valid key in Settings.</string>
     <string name="subdl_error_generic">Error from SubDL: %s</string>
+    <string name="subsource_subtitles_header">Indonesian Subtitles from SubSource</string>
+    <string name="no_subsource_found">No Indonesian subtitles found on SubSource</string>
+    <string name="searching_subsource">Searching SubSource…</string>
+    <string name="subsource_pick_title">Pick the correct title on SubSource:</string>
+    <string name="subsource_api_header">SubSource API Key (Indonesian Subtitles)</string>
+    <string name="subsource_api_desc">Indonesian subtitle source from SubSource. Get a free API key from the API &amp; Plans tab in your SubSource account dashboard, then paste it here.</string>
+    <string name="subsource_key_empty_error">Failed: SubSource API key cannot be empty</string>
+    <string name="subsource_key_saved_success">SubSource API key saved successfully!</string>
+    <string name="subsource_error_no_key">SubSource API key is not set. Add your free SubSource API key in Settings first.</string>
+    <string name="subsource_error_invalid_key">Invalid SubSource API key. Please configure a valid key in Settings.</string>
+    <string name="subsource_error_quota">SubSource rate limit or quota exceeded. Please try again later.</string>
+    <string name="subsource_error_network">Network error connecting to SubSource. Please check internet.</string>
     <string name="subdl_type_title_btn">Type Title Manually</string>
     <string name="advanced_options">Advanced Options</string>
 

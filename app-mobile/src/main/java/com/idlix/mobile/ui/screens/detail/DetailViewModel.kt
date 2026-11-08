@@ -14,9 +14,14 @@ import com.idlix.data.model.SubdlItem
 import com.idlix.data.model.SubdlQuery
 import com.idlix.data.model.SubdlSearchResult
 import com.idlix.data.model.SubdlSubtitle
+import com.idlix.data.model.SubsourceMovie
+import com.idlix.data.model.SubsourceQuery
+import com.idlix.data.model.SubsourceSearchResult
+import com.idlix.data.model.SubsourceSubtitle
 import com.idlix.data.model.SubtitleTrack
 import com.idlix.data.repository.IdlixRepository
 import com.idlix.data.repository.SubdlRepository
+import com.idlix.data.repository.SubsourceRepository
 import com.idlix.data.util.SubdlTitleCleaner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +74,10 @@ data class DetailUiState(
     val manualEpisode: String = "",
     val isUsingSessionOverride: Boolean = false,
     val isAppearancePanelOpen: Boolean = false,
+    val subsourceSubtitles: List<SubsourceSubtitle> = emptyList(),
+    val isSearchingSubsource: Boolean = false,
+    val subsourceCandidates: List<SubsourceMovie> = emptyList(),
+    val subsourceError: SubsourceSearchResult.Error? = null,
 
     // Next Episode Auto-Prompt
     val nextEpisode: NextEpisodeInfo? = null,
@@ -517,6 +526,102 @@ class DetailViewModel(
         )
         if (_uiState.value.subdlSubtitles.isEmpty() && !_uiState.value.isSearchingSubdl) {
             searchSubdlSubtitles()
+        }
+        if (_uiState.value.subsourceSubtitles.isEmpty() && !_uiState.value.isSearchingSubsource) {
+            searchSubsourceSubtitles()
+        }
+    }
+
+    private var subsourceSearchJob: Job? = null
+
+    fun searchSubsourceSubtitles(queryOverride: SubsourceQuery? = null) {
+        val targetQuery = queryOverride ?: run {
+            val title = currentContentTitle
+            if (title.isBlank()) return
+            val cleaned = SubdlTitleCleaner.clean(title)
+            SubsourceQuery(
+                filmName = cleaned.title,
+                year = cleaned.year,
+                type = if (currentContentType == "episode") "tv" else "movie",
+                season = currentSeasonNumber,
+                episode = currentEpisodeNumber
+            )
+        }
+
+        subsourceSearchJob?.cancel()
+        subsourceSearchJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isSearchingSubsource = true,
+                subsourceError = null
+            )
+            when (val result = SubsourceRepository.search(targetQuery)) {
+                is SubsourceSearchResult.Found -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSearchingSubsource = false,
+                        subsourceSubtitles = result.subtitles,
+                        subsourceCandidates = result.candidates,
+                        subsourceError = null
+                    )
+                }
+                is SubsourceSearchResult.NotFound -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSearchingSubsource = false,
+                        subsourceSubtitles = emptyList(),
+                        subsourceCandidates = result.candidates,
+                        subsourceError = null
+                    )
+                }
+                is SubsourceSearchResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isSearchingSubsource = false,
+                        subsourceSubtitles = emptyList(),
+                        subsourceCandidates = emptyList(),
+                        subsourceError = result
+                    )
+                }
+            }
+        }
+    }
+
+    fun selectSubsourceCandidate(candidate: SubsourceMovie) {
+        val query = SubsourceQuery(
+            movieId = candidate.movieId,
+            filmName = candidate.title,
+            year = candidate.releaseYear,
+            type = if (currentContentType == "episode") "tv" else "movie",
+            season = currentSeasonNumber,
+            episode = currentEpisodeNumber
+        )
+        searchSubsourceSubtitles(queryOverride = query)
+    }
+
+    fun selectSubsourceSubtitle(
+        sub: SubsourceSubtitle,
+        onSubtitleReady: (SubtitleTrack) -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSearchingSubsource = true)
+            val downloaded = SubsourceRepository.downloadSubtitle(
+                sub = sub,
+                context = getApplication<Application>().applicationContext
+            )
+            _uiState.value = _uiState.value.copy(isSearchingSubsource = false)
+
+            if (downloaded != null) {
+                val currentStream = _uiState.value.resolvedStream
+                if (currentStream != null) {
+                    val updatedSubs = currentStream.subtitles.toMutableList()
+                    updatedSubs.removeAll { it.path == downloaded.path }
+                    updatedSubs.add(0, downloaded)
+                    _uiState.value = _uiState.value.copy(
+                        resolvedStream = currentStream.copy(subtitles = updatedSubs),
+                        selectedSubtitle = downloaded,
+                        isSubtitleEnabled = true,
+                        isSubtitlePickerVisible = false
+                    )
+                }
+                onSubtitleReady(downloaded)
+            }
         }
     }
 

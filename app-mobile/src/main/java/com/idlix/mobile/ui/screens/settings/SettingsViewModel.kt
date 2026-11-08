@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.idlix.data.api.ApiClient
 import com.idlix.data.repository.SubdlRepository
+import com.idlix.data.repository.SubsourceRepository
 import com.idlix.mobile.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,10 @@ data class SettingsUiState(
     val backendTestResult: String? = null,
     val isTestingSubdl: Boolean = false,
     val subdlTestResult: String? = null,
+    val activeSubsourceKey: String = "",
+    val subsourceKey: String = "",
+    val isTestingSubsource: Boolean = false,
+    val subsourceTestResult: String? = null,
     val isTestingDns: Boolean = false,
     val dnsTestResult: String? = null,
     val cacheCleared: Boolean = false
@@ -39,6 +44,8 @@ class SettingsViewModel(
             activeSubdlKey = SubdlRepository.getApiKey(),
             backendUrl = ApiClient.getBaseUrl(),
             subdlKey = SubdlRepository.getApiKey(),
+            activeSubsourceKey = SubsourceRepository.getApiKey(),
+            subsourceKey = SubsourceRepository.getApiKey(),
             activeDnsProvider = ApiClient.getDnsProvider(),
             selectedDnsProvider = ApiClient.getDnsProvider()
         )
@@ -61,6 +68,14 @@ class SettingsViewModel(
     fun resetSubdlKey() {
         val defaultKey = SubdlRepository.DEFAULT_API_KEY
         _uiState.value = _uiState.value.copy(subdlKey = defaultKey, subdlTestResult = null)
+    }
+
+    fun updateSubsourceKey(key: String) {
+        _uiState.value = _uiState.value.copy(subsourceKey = key, subsourceTestResult = null)
+    }
+
+    fun resetSubsourceKey() {
+        _uiState.value = _uiState.value.copy(subsourceKey = "", subsourceTestResult = null)
     }
 
     fun saveBackendUrl() {
@@ -91,6 +106,18 @@ class SettingsViewModel(
         )
     }
 
+    fun saveSubsourceKey() {
+        val app = getApplication<Application>()
+        val targetKey = _uiState.value.subsourceKey.trim()
+        SubsourceRepository.setApiKey(targetKey)
+        val newActive = SubsourceRepository.getApiKey()
+        _uiState.value = _uiState.value.copy(
+            activeSubsourceKey = newActive,
+            subsourceKey = newActive,
+            subsourceTestResult = app.getString(R.string.subsource_key_saved_success)
+        )
+    }
+
     fun testBackend() {
         val app = getApplication<Application>()
         val targetUrl = _uiState.value.backendUrl.trim()
@@ -115,6 +142,30 @@ class SettingsViewModel(
             _uiState.value = _uiState.value.copy(
                 isTestingBackend = false,
                 backendTestResult = result.fold(
+                    onSuccess = { it },
+                    onFailure = { "Failed: ${it.localizedMessage ?: "Unknown network error"}" }
+                )
+            )
+        }
+    }
+
+    fun testSubsource() {
+        val app = getApplication<Application>()
+        val targetKey = _uiState.value.subsourceKey.trim()
+        if (targetKey.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                isTestingSubsource = false,
+                subsourceTestResult = app.getString(R.string.subsource_key_empty_error)
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isTestingSubsource = true, subsourceTestResult = null)
+            val result = SubsourceRepository.testApiKey(targetKey)
+            _uiState.value = _uiState.value.copy(
+                isTestingSubsource = false,
+                subsourceTestResult = result.fold(
                     onSuccess = { it },
                     onFailure = { "Failed: ${it.localizedMessage ?: "Unknown network error"}" }
                 )

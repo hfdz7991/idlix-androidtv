@@ -83,6 +83,9 @@ import com.idlix.data.model.SubdlItem
 import com.idlix.data.model.SubdlQuery
 import com.idlix.data.model.SubdlSearchResult
 import com.idlix.data.model.SubdlSubtitle
+import com.idlix.data.model.SubsourceMovie
+import com.idlix.data.model.SubsourceSearchResult
+import com.idlix.data.model.SubsourceSubtitle
 import com.idlix.data.model.SubtitleSize
 import com.idlix.data.model.SubtitleTrack
 import com.idlix.mobile.R
@@ -114,6 +117,10 @@ fun SubtitleModalBottomSheet(
     subdlCandidates: List<SubdlItem> = emptyList(),
     subdlError: SubdlSearchResult.Error? = null,
     subdlActiveQuery: SubdlQuery? = null,
+    subsourceSubtitles: List<SubsourceSubtitle> = emptyList(),
+    isSearchingSubsource: Boolean = false,
+    subsourceCandidates: List<SubsourceMovie> = emptyList(),
+    subsourceError: SubsourceSearchResult.Error? = null,
     isManualSearchOpen: Boolean = false,
     manualTitle: String = "",
     manualYear: String = "",
@@ -125,6 +132,9 @@ fun SubtitleModalBottomSheet(
     onSelectTrack: (SubtitleTrack?) -> Unit,
     onSelectSubdl: (SubdlSubtitle) -> Unit,
     onSearchSubdl: () -> Unit,
+    onSelectSubsource: (SubsourceSubtitle) -> Unit = {},
+    onSearchSubsource: () -> Unit = {},
+    onSelectSubsourceCandidate: (SubsourceMovie) -> Unit = {},
     onOpenManualSearch: () -> Unit,
     onCloseManualSearch: () -> Unit,
     onManualTitleChange: (String) -> Unit,
@@ -592,6 +602,129 @@ fun SubtitleModalBottomSheet(
                                     isSelected = isSelected,
                                     showDownloadIcon = !isSelected,
                                     onClick = { onSelectSubdl(subdl) }
+                                )
+                            }
+                        }
+
+                        // SubSource Subtitles Section (Indonesian)
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 14.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.subsource_subtitles_header),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextSecondary
+                                )
+                                if (!isSearchingSubsource) {
+                                    IconButton(
+                                        onClick = onSearchSubsource,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = null,
+                                            tint = IdlixRed,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (isSearchingSubsource) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = IdlixRed,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = stringResource(R.string.searching_subsource),
+                                        fontSize = 13.sp,
+                                        color = TextMuted
+                                    )
+                                }
+                            }
+                        } else if (subsourceError != null) {
+                            item {
+                                val errorMsg = when (subsourceError.reason) {
+                                    SubsourceSearchResult.Error.Reason.NO_API_KEY -> stringResource(R.string.subsource_error_no_key)
+                                    SubsourceSearchResult.Error.Reason.INVALID_KEY -> stringResource(R.string.subsource_error_invalid_key)
+                                    SubsourceSearchResult.Error.Reason.QUOTA -> stringResource(R.string.subsource_error_quota)
+                                    SubsourceSearchResult.Error.Reason.NETWORK -> stringResource(R.string.subsource_error_network)
+                                    else -> subsourceError.message.orEmpty().ifBlank { "Error" }
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0x22E50914), RoundedCornerShape(8.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Warning, contentDescription = null, tint = IdlixRed, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = errorMsg, color = IdlixRed, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                                }
+                            }
+                        } else if (subsourceSubtitles.isEmpty()) {
+                            item {
+                                Text(
+                                    text = stringResource(R.string.no_subsource_found),
+                                    fontSize = 13.sp,
+                                    color = TextMuted,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                            if (subsourceCandidates.size > 1) {
+                                item {
+                                    Text(
+                                        text = stringResource(R.string.subsource_pick_title),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextSecondary,
+                                        modifier = Modifier.padding(top = 6.dp, bottom = 4.dp)
+                                    )
+                                }
+                                items(subsourceCandidates) { candidate ->
+                                    SubtitleOptionItem(
+                                        title = candidate.title ?: "Title",
+                                        subtitle = "${candidate.type ?: "movie"} • ${candidate.releaseYear ?: ""}",
+                                        isSelected = false,
+                                        onClick = { onSelectSubsourceCandidate(candidate) }
+                                    )
+                                }
+                            }
+                        } else {
+                            items(subsourceSubtitles) { sub ->
+                                val isSelected = isSubtitleEnabled &&
+                                    selectedSubtitle?.label == "Indonesian [SubSource]" &&
+                                    sub.subtitleId != null &&
+                                    selectedSubtitle?.path?.contains("subsource_id_${sub.subtitleId}_") == true
+                                val meta = buildString {
+                                    append("Indonesian")
+                                    if (sub.hearingImpaired) append(" • HI")
+                                    sub.downloads?.let { append(" • $it downloads") }
+                                }
+                                SubtitleOptionItem(
+                                    title = sub.displayRelease,
+                                    subtitle = meta,
+                                    isSelected = isSelected,
+                                    showDownloadIcon = !isSelected,
+                                    onClick = { onSelectSubsource(sub) }
                                 )
                             }
                         }
